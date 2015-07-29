@@ -1,9 +1,7 @@
 #!/usr/bin/env python
 """
 OATH HOTP + TOTP Implementation in python.
-
 Based on http://tools.ietf.org/html/rfc4226
-
 Parameter and function names kept inline with the RFC
 (e.g. HOTP, Truncate, K, C etc)
 """
@@ -13,32 +11,38 @@ import hashlib
 import struct
 import time
 import unittest
+from exceptions import NotImplementedError
 
 
-def HOTP(K, C, digits=6):
+def HOTP(K, C, digits=6, sha=1):
     """
     HOTP accepts key K and counter C
     optional digits parameter can control the response length
-
     returns the OATH integer code with {digits} length
     """
     C_bytes = struct.pack(b"!Q", C)
-    hmac_sha1 = hmac.new(key=K, msg=C_bytes,
-                         digestmod=hashlib.sha1).hexdigest()
-    return Truncate(hmac_sha1)[-digits:]
+    if sha == 1:
+        hashlb = hashlib.sha1
+    elif sha == 512:
+        hashlb = hashlib.sha512
+    else:
+        raise NotImplementedError("there is no sha-%s implemented" % str(sha))
+    hmac_sha = hmac.new(key=K, msg=C_bytes,
+                         digestmod=hashlb).hexdigest()
+    
+    return Truncate(hmac_sha)[-digits:]
 
 
-def TOTP(K, digits=6, window=30):
+def TOTP(K, digits=6, window=30, sha=1):
     """
     TOTP is a time-based variant of HOTP.
     It accepts only key K, since the counter is derived from the current time
     optional digits parameter can control the response length
     optional window parameter controls the time window in seconds
-
     returns the OATH integer code with {digits} length
     """
     C = int(time.time() / window)
-    return HOTP(K, C, digits=digits)
+    return HOTP(K, C, digits=digits, sha=sha)
 
 
 def Truncate(hmac_sha1):
